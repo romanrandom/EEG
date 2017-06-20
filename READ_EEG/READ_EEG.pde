@@ -96,7 +96,7 @@ void setup()
   windowHeight = 500;
   FFTheight = windowHeight - 200;
   
-  size(windowLength, windowHeight, P2D);
+  surface.setSize(windowLength, windowHeight);
   
   //initialize minim, as well as some filters
   minim = new Minim(this);
@@ -163,7 +163,7 @@ void keyPressed(){
 void serialEvent(Serial p){
   while (p.available() > 0){
     shiftNtimes(timeSignal, 1);
-    timeSignal(
+    //timeSignal(
   }
 }
 

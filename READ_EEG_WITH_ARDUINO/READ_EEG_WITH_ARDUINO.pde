@@ -10,15 +10,11 @@
  */
  
 import processing.serial.*;
-import ddf.minim.*;
-import ddf.minim.signals.*;
-import ddf.minim.analysis.*;
-import ddf.minim.effects.*;
 
-int NUM_CHANNELS = 2; 
+int NUM_CHANNELS = 1; 
 int timeHeight = 100; //how many vertical pixels time data occupies
-int freqRange = 30;
-float freqRes = 0.1f; //resolution of the frequency, choose such that 1/freqRes is a whole number
+int freqRange = 20;
+float freqRes = 0.2f; //resolution of the frequency, choose such that 1/freqRes is a whole number
 int L = 20;
 
 Serial myPort;  // The serial port
@@ -29,25 +25,24 @@ float displayBuffer[][] = new float[NUM_CHANNELS][fRate*inBuffer*seconds];
 float timeLength = displayBuffer[0].length; //number of samples/sec in time 
 int N = (int)timeLength;
 
-SquareWave squareWave;
-Minim minim = new Minim(this);
-AudioOutput out;
+int serialPort = 1;
 
-void setup(){
-  frameRate(60);
-  size(840, NUM_CHANNELS*timeHeight*2);
-  myPort = new Serial(this, Serial.list()[0], 9600);
+void setup() {
+
+  surface.setSize( 840, NUM_CHANNELS * timeHeight * 2 );
+  
+  myPort = new Serial(this, Serial.list()[serialPort], 9600);
   rectMode(CORNER);
 }
 
 void draw(){
-  println(frameRate);
+
   background(0);
+  
   //grab the data
-  //while (myPort.available() > 0) {
-    shiftNtimes(displayBuffer, inBuffer);
-    updateData(displayBuffer);
-  //}
+  shiftNtimes(displayBuffer, inBuffer);
+  updateData(displayBuffer);
+
   stroke(255);
   displayData(displayBuffer);
   for (int i = 0; i < NUM_CHANNELS; i++){
@@ -81,13 +76,17 @@ int counter = 0;
 public void updateData(float[][] displayBuffer){
   for (int i = 0; i < NUM_CHANNELS; i++){
       for (int j = 0; j < inBuffer; j++){
-        float sinFrequency = 1;
-        float inByte = 20*sin(2*PI*((inBuffer*counter+j)%(inBuffer*60/sinFrequency))/(inBuffer*60/sinFrequency));
-        //float inByte = out.mix.get(j);
-        //float inByte = random(0,1023);
-        //inByte -= 512;
-        //inByte = inByte * (timeHeight/2)/512;
-        //float inByte = myPort.read();
+        
+        // Test data
+        // float sinFrequency = 1;
+        // float inByte = 20*sin(2*PI*((inBuffer*counter+j)%(inBuffer*60/sinFrequency))/(inBuffer*60/sinFrequency));
+        // float inByte = out.mix.get(j);
+        // float inByte = random(0,1023);
+        // inByte -= 512;
+        // inByte = inByte * (timeHeight/2)/512;
+        
+        float inByte = myPort.read();
+        //println(inByte);
         displayBuffer[i][displayBuffer[i].length - (inBuffer - j)] = inByte;
       }
   }
@@ -142,18 +141,22 @@ float[] runAutoregression(int channel){
   }
   //construct square matrix to find a-hat coefficients
   for (int M = L; M > 0; M--){
+    
     float a[] = new float[M];
+    
     a = getCoefficients(M);
     float Rm = calculateR(a,M);
     float FPE = calculateFPE(Rm,M);
+  
     if (FPE > maxFPE){
       maxFPE = FPE;
       bestM = M;
     }
   }
   float a[] = new float[bestM];
+  
   a = getCoefficients(bestM);
-  println(a);
+  //println(a);
   return a;
 }
 
@@ -162,6 +165,7 @@ float[] runAutoregression(int channel){
 //frequency analysis. Uses the sample autocovariances, Cxx,
 //to calculate these coefficients.
 float[] getCoefficients(int M){
+  
   float CxxSquare[][] = new float[M][M];
   float a[] = new float[M];
   for (int i = 0; i < M; i++){
@@ -173,7 +177,9 @@ float[] getCoefficients(int M){
   for (int i = 0; i < M; i++){
     shiftedCxx[i] = Cxx[i+1];
   }
+
   a = solveLevinson(CxxSquare[0],shiftedCxx);
+
   return a;
 }
 
@@ -202,11 +208,30 @@ float[] evaluateTransfer(float[] a){
 
 //Graphs the frequency data obtained in evaluateTransfer. The scaleFreq
 //parameter directly before it controls the overall height of the data displayed.
-float scaleFreq = 20; //controls total height of frequency bars
-void displayFreqData(float[] magnitude, int channelNum){
-  for (int i = 0; i < magnitude.length; i++){
-    rect(i*(width/magnitude.length), timeHeight*2*(channelNum+1),
-      (width/magnitude.length), -magnitude[i]*scaleFreq);
+float scaleFreq = 5; //controls total height of frequency bars
+
+void displayFreqData( float[] magnitude, int channelNum ) {
+  
+  textSize( 20 );
+  //textAlign( LEFT, TOP );
+  float freqWidth = width / float( magnitude.length );
+  
+  for ( int i = 0; i < magnitude.length; i++ ){
+    float xPos = i * freqWidth;
+    rect( 
+      xPos, 
+      timeHeight * 2 * ( channelNum + 1 ),
+      freqWidth, 
+      -magnitude[ i ] * scaleFreq
+    );
+    if ( mouseX >= xPos && mouseX < xPos + freqWidth ) {
+      fill( 0 );
+      noStroke();
+      rect( mouseX, mouseY, 60, -25 );
+      fill( 50, 100, 255 );
+      text( i, mouseX + 10, mouseY - 5 );
+      fill( 255 );
+    }
   }
 }
 
@@ -279,4 +304,3 @@ void keyPressed(){
     loop();
   }
 }
-
